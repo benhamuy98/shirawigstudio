@@ -305,9 +305,48 @@ async function boot() {
     renderLogin();
   }
   db.auth.onAuthStateChange((_event, session) => {
-    if (session) { currentUser = session.user; renderApp(); }
-    else { currentUser = null; renderLogin(); }
+    if (_event === 'PASSWORD_RECOVERY') {
+      renderSetPassword();
+    } else if (session) {
+      currentUser = session.user; renderApp();
+    } else {
+      currentUser = null; renderLogin();
+    }
   });
+}
+
+function renderSetPassword() {
+  document.getElementById('root').innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="login-brand">✦ Studio</div>
+        <div class="login-sub">Set a new password</div>
+        <div class="login-error" id="login-error"></div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label>New password</label>
+          <input id="new-password" type="password" placeholder="••••••••" autocomplete="new-password">
+        </div>
+        <div class="form-group" style="margin-bottom:20px">
+          <label>Confirm password</label>
+          <input id="new-password-confirm" type="password" placeholder="••••••••" autocomplete="new-password">
+        </div>
+        <button class="btn btn-primary btn-full" id="set-pw-btn" onclick="setNewPassword()">Set password</button>
+      </div>
+    </div>
+  `;
+}
+
+async function setNewPassword() {
+  const pw = document.getElementById('new-password').value;
+  const pw2 = document.getElementById('new-password-confirm').value;
+  if (!pw || pw.length < 6) { showLoginError('Password must be at least 6 characters.'); return; }
+  if (pw !== pw2) { showLoginError('Passwords do not match.'); return; }
+  const btn = document.getElementById('set-pw-btn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { error } = await db.auth.updateUser({ password: pw });
+  if (error) { showLoginError(error.message); btn.disabled = false; btn.textContent = 'Set password'; return; }
+  showToast('Password updated ✓');
+  renderApp();
 }
 
 // ============================================================
