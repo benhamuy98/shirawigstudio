@@ -475,8 +475,8 @@ async function loadDashboard() {
   document.getElementById('content').innerHTML = `
     <div class="gap-24">
       <div class="grid-4">
-        <div class="card"><div class="stat-label">Total earned</div><div class="stat-value">$${income.toFixed(0)}</div><div class="stat-sub" style="color:var(--sage-dark)">All time</div></div>
-        <div class="card"><div class="stat-label">Outstanding</div><div class="stat-value" style="color:var(--rose)">$${unpaidTotal.toFixed(0)}</div><div class="stat-sub">${unpaidJobs.length} job${unpaidJobs.length!==1?'s':''} unpaid</div></div>
+        <div class="card"><div class="stat-label">Total earned</div><div class="stat-value">₪${income.toFixed(0)}</div><div class="stat-sub" style="color:var(--sage-dark)">All time</div></div>
+        <div class="card"><div class="stat-label">Outstanding</div><div class="stat-value" style="color:var(--rose)">₪${unpaidTotal.toFixed(0)}</div><div class="stat-sub">${unpaidJobs.length} job${unpaidJobs.length!==1?'s':''} unpaid</div></div>
         <div class="card"><div class="stat-label">Active jobs</div><div class="stat-value">${activeJobs.length}</div><div class="stat-sub">${readyJobs.length} ready for pickup</div></div>
         <div class="card"><div class="stat-label">Clients</div><div class="stat-value">${C.length}</div><div class="stat-sub">Total in system</div></div>
       </div>
@@ -488,7 +488,7 @@ async function loadDashboard() {
             ? `<div class="card card-sm" style="text-align:center;color:var(--espresso-light);font-size:13px;padding:20px">All clear — nothing urgent right now 🎉</div>`
             : `
               ${readyJobs.map(j => `<div class="urgency-item" onclick="navigateTo('jobs')"><div class="urgency-dot dot-rose"></div><div style="flex:1;font-size:13px;font-weight:500">${j.client_name} — ready for pickup</div><div style="font-size:12px;color:var(--espresso-light)">${j.type}</div></div>`).join('')}
-              ${unpaidJobs.filter(j=>j.status==='ready'||j.status==='complete').map(j=>`<div class="urgency-item" onclick="navigateTo('finance')"><div class="urgency-dot dot-amber"></div><div style="flex:1;font-size:13px;font-weight:500">Invoice $${parseFloat(j.price).toFixed(0)} — ${j.client_name}</div><div style="font-size:12px;color:var(--espresso-light)">Unpaid</div></div>`).join('')}
+              ${unpaidJobs.filter(j=>j.status==='ready'||j.status==='complete').map(j=>`<div class="urgency-item" onclick="navigateTo('finance')"><div class="urgency-dot dot-amber"></div><div style="flex:1;font-size:13px;font-weight:500">Invoice ₪${parseFloat(j.price).toFixed(0)} — ${j.client_name}</div><div style="font-size:12px;color:var(--espresso-light)">Unpaid</div></div>`).join('')}
               ${lowSupplies.map(s=>`<div class="urgency-item" onclick="navigateTo('supplies')"><div class="urgency-dot dot-amber"></div><div style="flex:1;font-size:13px;font-weight:500">Low stock: ${s.name}</div><div style="font-size:12px;color:var(--espresso-light)">${s.qty} ${s.unit} left</div></div>`).join('')}
             `}
         </div>
@@ -496,12 +496,12 @@ async function loadDashboard() {
           <div class="section-title">Profit summary</div>
           <div class="card">
             <div style="display:flex;gap:16px;margin-bottom:16px">
-              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Income</div><div style="font-size:22px;font-weight:700;color:var(--sage-dark)">$${income.toFixed(0)}</div></div>
-              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Expenses</div><div style="font-size:22px;font-weight:700;color:var(--rose)">$${expenses.toFixed(0)}</div></div>
-              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Profit</div><div style="font-size:22px;font-weight:700">$${(income-expenses).toFixed(0)}</div></div>
+              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Income</div><div style="font-size:22px;font-weight:700;color:var(--sage-dark)">₪${income.toFixed(0)}</div></div>
+              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Expenses</div><div style="font-size:22px;font-weight:700;color:var(--rose)">₪${expenses.toFixed(0)}</div></div>
+              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Profit</div><div style="font-size:22px;font-weight:700">₪${(income-expenses).toFixed(0)}</div></div>
             </div>
             <div style="background:var(--amber-light);border-radius:var(--radius-sm);padding:12px;font-size:13px;color:var(--amber-dark)">
-              <strong>Tax tip:</strong> Set aside <strong>$${Math.round((income-expenses)*0.28)}</strong> (~28% of profit) for taxes.
+              <strong>Tax tip:</strong> Set aside <strong>₪${Math.round((income-expenses)*0.28)}</strong> (~28% of profit) for taxes.
             </div>
           </div>
         </div>
@@ -513,7 +513,7 @@ async function loadDashboard() {
           ${J.length === 0
             ? `<div class="empty"><p>No jobs yet.</p><button class="btn btn-primary" onclick="openNewJobModal()">Add first job</button></div>`
             : `<div class="table-wrap"><table><thead><tr><th>Client</th><th>Service</th><th>Status</th><th>Price</th><th>Due</th></tr></thead><tbody>
-              ${J.slice(0,5).map(j=>`<tr><td class="td-primary">${j.client_name}</td><td>${j.type}</td><td>${jobBadge(j.status)}</td><td class="td-primary">$${parseFloat(j.price).toFixed(0)}</td><td class="td-muted">${formatDate(j.due_date)}</td></tr>`).join('')}
+              ${J.slice(0,5).map(j=>`<tr><td class="td-primary">${j.client_name}</td><td>${j.type}</td><td>${jobBadge(j.status)}</td><td class="td-primary">₪${parseFloat(j.price).toFixed(0)}</td><td class="td-muted">${formatDate(j.due_date)}</td></tr>`).join('')}
               </tbody></table></div>`}
         </div>
       </div>
@@ -559,7 +559,7 @@ async function loadClients() {
             ${activeJob ? `<div style="margin-bottom:8px">${jobBadge(activeJob.status)} <span style="font-size:12px;color:var(--espresso-light);margin-left:6px">${activeJob.type}</span></div>` : ''}
             <div style="display:flex;gap:16px;margin-top:8px">
               <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Jobs</div><div style="font-weight:700;font-size:18px">${clientJobs.length}</div></div>
-              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Spent</div><div style="font-weight:700;font-size:18px">$${totalSpent.toFixed(0)}</div></div>
+              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Spent</div><div style="font-weight:700;font-size:18px">₪${totalSpent.toFixed(0)}</div></div>
               <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Source</div><div style="font-size:13px;font-weight:500;margin-top:2px">${c.source||'—'}</div></div>
             </div>
             ${c.notes ? `<div style="margin-top:10px;font-size:12px;color:var(--espresso-light);border-top:1px solid var(--ivory-border);padding-top:10px;line-height:1.5">${c.notes}</div>` : ''}
@@ -625,7 +625,7 @@ function jobCard(j) {
     <div style="font-weight:600;font-size:13px;margin-bottom:4px">${j.client_name}</div>
     <div style="font-size:12px;color:var(--espresso-light);margin-bottom:8px">${j.type}</div>
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <div style="font-weight:700;font-size:15px">$${parseFloat(j.price||0).toFixed(0)}</div>
+      <div style="font-weight:700;font-size:15px">₪${parseFloat(j.price||0).toFixed(0)}</div>
       <div style="font-size:11px;color:var(--espresso-light)">Due ${formatDate(j.due_date)}</div>
     </div>
     ${!j.paid && j.status !== 'complete' ? `<div style="margin-top:6px"><span class="badge badge-amber">Unpaid</span></div>` : ''}
@@ -672,17 +672,17 @@ async function loadFinance() {
   document.getElementById('content').innerHTML = `
     <div class="gap-24">
       <div class="grid-4">
-        <div class="card"><div class="stat-label">Total income</div><div class="stat-value" style="color:var(--sage-dark)">$${income.toFixed(0)}</div></div>
-        <div class="card"><div class="stat-label">Total expenses</div><div class="stat-value" style="color:var(--rose)">$${expenses.toFixed(0)}</div></div>
-        <div class="card"><div class="stat-label">Net profit</div><div class="stat-value">${profit>=0?'+':''}$${profit.toFixed(0)}</div></div>
-        <div class="card" style="background:var(--amber-light);border-color:#e6c97a"><div class="stat-label" style="color:var(--amber-dark)">Set aside for taxes</div><div class="stat-value" style="color:var(--amber-dark)">$${Math.round(profit*0.28)}</div><div class="stat-sub" style="color:var(--amber-dark)">~28% of profit</div></div>
+        <div class="card"><div class="stat-label">Total income</div><div class="stat-value" style="color:var(--sage-dark)">₪${income.toFixed(0)}</div></div>
+        <div class="card"><div class="stat-label">Total expenses</div><div class="stat-value" style="color:var(--rose)">₪${expenses.toFixed(0)}</div></div>
+        <div class="card"><div class="stat-label">Net profit</div><div class="stat-value">${profit>=0?'+':''}₪${profit.toFixed(0)}</div></div>
+        <div class="card" style="background:var(--amber-light);border-color:#e6c97a"><div class="stat-label" style="color:var(--amber-dark)">Set aside for taxes</div><div class="stat-value" style="color:var(--amber-dark)">₪${Math.round(profit*0.28)}</div><div class="stat-sub" style="color:var(--amber-dark)">~28% of profit</div></div>
       </div>
       <div>
         <div class="section-title">Unpaid invoices</div>
         ${unpaidJobs.length === 0
           ? `<div class="card card-sm" style="text-align:center;color:var(--espresso-light);font-size:13px;padding:20px">All invoices paid 🎉</div>`
           : `<div class="card" style="padding:0"><div class="table-wrap"><table><thead><tr><th>Client</th><th>Service</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead><tbody>
-            ${unpaidJobs.map(j=>`<tr><td class="td-primary">${j.client_name}</td><td>${j.type}</td><td>${jobBadge(j.status)}</td><td style="font-weight:700">$${parseFloat(j.price||0).toFixed(0)}</td><td><button class="btn btn-sm btn-ghost" onclick="markPaid('${j.id}',${j.price},'${j.client_name}','${j.type}')">Mark paid</button></td></tr>`).join('')}
+            ${unpaidJobs.map(j=>`<tr><td class="td-primary">${j.client_name}</td><td>${j.type}</td><td>${jobBadge(j.status)}</td><td style="font-weight:700">₪${parseFloat(j.price||0).toFixed(0)}</td><td><button class="btn btn-sm btn-ghost" onclick="markPaid('${j.id}',${j.price},'${j.client_name}','${j.type}')">Mark paid</button></td></tr>`).join('')}
             </tbody></table></div></div>`}
       </div>
       <div>
@@ -691,7 +691,7 @@ async function loadFinance() {
           ${T.length === 0
             ? `<div class="empty"><p>No transactions yet.</p></div>`
             : `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Type</th><th style="text-align:right">Amount</th></tr></thead><tbody>
-              ${T.map(t=>`<tr><td class="td-muted">${formatDate(t.date)}</td><td class="td-primary">${t.description}</td><td><span class="tag">${t.category||'—'}</span></td><td>${t.type==='income'?`<span class="badge badge-sage">Income</span>`:`<span class="badge badge-rose">Expense</span>`}</td><td style="text-align:right;font-weight:700;color:${t.type==='income'?'var(--sage-dark)':'var(--rose)'}">${t.type==='income'?'+':'-'}$${parseFloat(t.amount||0).toFixed(0)}</td></tr>`).join('')}
+              ${T.map(t=>`<tr><td class="td-muted">${formatDate(t.date)}</td><td class="td-primary">${t.description}</td><td><span class="tag">${t.category||'—'}</span></td><td>${t.type==='income'?`<span class="badge badge-sage">Income</span>`:`<span class="badge badge-rose">Expense</span>`}</td><td style="text-align:right;font-weight:700;color:${t.type==='income'?'var(--sage-dark)':'var(--rose)'}">${t.type==='income'?'+':'-'}₪${parseFloat(t.amount||0).toFixed(0)}</td></tr>`).join('')}
               </tbody></table></div>`}
         </div>
       </div>
@@ -712,7 +712,7 @@ async function loadSupplies() {
       <div class="grid-3">
         <div class="card"><div class="stat-label">Total items</div><div class="stat-value">${S.length}</div></div>
         <div class="card"><div class="stat-label">Low stock alerts</div><div class="stat-value" style="color:var(--amber-dark)">${low}</div></div>
-        <div class="card"><div class="stat-label">Est. supply value</div><div class="stat-value">$${S.reduce((s,i)=>s+(i.qty*parseFloat(i.cost||0)),0).toFixed(0)}</div></div>
+        <div class="card"><div class="stat-label">Est. supply value</div><div class="stat-value">₪${S.reduce((s,i)=>s+(i.qty*parseFloat(i.cost||0)),0).toFixed(0)}</div></div>
       </div>
       <div class="card" style="padding:0">
         ${S.length === 0
@@ -722,7 +722,7 @@ async function loadSupplies() {
               <td class="td-primary">${s.name}</td>
               <td>${s.qty} ${s.unit}</td>
               <td class="td-muted">${s.reorder_at} ${s.unit}</td>
-              <td class="td-muted">$${parseFloat(s.cost||0).toFixed(2)}</td>
+              <td class="td-muted">₪${parseFloat(s.cost||0).toFixed(2)}</td>
               <td>${s.qty<=s.reorder_at?`<span class="badge badge-amber">⚠ Low</span>`:`<span class="badge badge-sage">OK</span>`}</td>
               <td>
                 <button class="btn btn-ghost btn-sm" onclick="adjustQty('${s.id}',${s.qty},1)">+1</button>
@@ -844,7 +844,7 @@ async function openNewJobModal() {
         <select id="j-client">${C.length===0?'<option value="">— Add a client first —</option>':C.map(c=>`<option value="${c.id}|${c.name}">${c.name}</option>`).join('')}</select>
       </div>
       <div class="form-group" style="grid-column:1/-1"><label>Service type *</label><input id="j-type" placeholder="e.g. Deep condition + style"></div>
-      <div class="form-group"><label>Price ($) *</label><input id="j-price" type="number" placeholder="0"></div>
+      <div class="form-group"><label>Price (₪) *</label><input id="j-price" type="number" placeholder="0"></div>
       <div class="form-group"><label>Due date</label><input id="j-due" type="date"></div>
       <div class="form-group" style="grid-column:1/-1"><label>Notes</label><textarea id="j-notes" placeholder="Condition, special requests..."></textarea></div>
     </div></div>
@@ -874,7 +874,7 @@ function openNewTransactionModal() {
     <div class="modal-header"><div class="modal-title">Add transaction</div><button class="close-btn" onclick="closeModal()">${iconX()}</button></div>
     <div class="modal-body"><div class="form-grid form-grid-2">
       <div class="form-group"><label>Type</label><select id="t-type"><option value="income">Income</option><option value="expense">Expense</option></select></div>
-      <div class="form-group"><label>Amount ($) *</label><input id="t-amount" type="number" placeholder="0"></div>
+      <div class="form-group"><label>Amount (₪) *</label><input id="t-amount" type="number" placeholder="0"></div>
       <div class="form-group"><label>Category</label><select id="t-category"><option>Services</option><option>Supplies</option><option>Marketing</option><option>Equipment</option><option>Investments</option><option>Other</option></select></div>
       <div class="form-group"><label>Date</label><input id="t-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
       <div class="form-group" style="grid-column:1/-1"><label>Description *</label><input id="t-desc" placeholder="What was this for?"></div>
@@ -905,7 +905,7 @@ function openNewSupplyModal() {
       <div class="form-group"><label>Quantity</label><input id="s-qty" type="number" value="1"></div>
       <div class="form-group"><label>Unit</label><input id="s-unit" placeholder="bottles, pairs…"></div>
       <div class="form-group"><label>Reorder when below</label><input id="s-reorder" type="number" value="2"></div>
-      <div class="form-group"><label>Unit cost ($)</label><input id="s-cost" type="number" value="0"></div>
+      <div class="form-group"><label>Unit cost (₪)</label><input id="s-cost" type="number" value="0"></div>
     </div></div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSupply()">Add item</button></div>
   </div>`);
@@ -965,7 +965,7 @@ async function openClientDetail(id) {
     <div class="modal-body">
       <div style="display:flex;gap:12px;margin-bottom:16px">
         <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Jobs</div><div style="font-weight:700;font-size:22px">${J.length}</div></div>
-        <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Total spent</div><div style="font-weight:700;font-size:22px">$${totalSpent.toFixed(0)}</div></div>
+        <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Total spent</div><div style="font-weight:700;font-size:22px">₪${totalSpent.toFixed(0)}</div></div>
         <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Source</div><div style="font-size:13px;font-weight:600;margin-top:4px">${c.source||'—'}</div></div>
       </div>
       ${c.notes?`<div style="background:var(--ivory-dark);border-radius:var(--radius-sm);padding:12px;font-size:13px;margin-bottom:16px;color:var(--espresso-mid)">${c.notes}</div>`:''}
@@ -974,7 +974,7 @@ async function openClientDetail(id) {
         ?`<div style="font-size:13px;color:var(--espresso-light);text-align:center;padding:16px 0">No jobs yet</div>`
         :J.map(j=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--ivory-border)">
           <div><div style="font-size:13px;font-weight:500">${j.type}</div><div style="font-size:12px;color:var(--espresso-light)">${formatDate(j.due_date)}</div></div>
-          <div style="display:flex;align-items:center;gap:8px">${jobBadge(j.status)}<span style="font-weight:700">$${parseFloat(j.price||0).toFixed(0)}</span></div>
+          <div style="display:flex;align-items:center;gap:8px">${jobBadge(j.status)}<span style="font-weight:700">₪${parseFloat(j.price||0).toFixed(0)}</span></div>
         </div>`).join('')}
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
@@ -991,7 +991,7 @@ async function openJobDetail(id) {
     </div>
     <div class="modal-body">
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
-        <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Price</div><div style="font-weight:700;font-size:22px">$${parseFloat(j.price||0).toFixed(0)}</div></div>
+        <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Price</div><div style="font-weight:700;font-size:22px">₪${parseFloat(j.price||0).toFixed(0)}</div></div>
         <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Due</div><div style="font-weight:600;font-size:14px;margin-top:4px">${formatDate(j.due_date)}</div></div>
         <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Paid</div><div style="font-size:20px;margin-top:2px">${j.paid?'✅':'❌'}</div></div>
       </div>
@@ -1000,7 +1000,7 @@ async function openJobDetail(id) {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         ${statuses.map(s=>`<button class="btn ${j.status===s?'btn-primary':'btn-ghost'}" onclick="updateJobStatus('${j.id}','${s}')">${statusLabel(s)}</button>`).join('')}
       </div>
-      ${!j.paid?`<div class="divider"></div><button class="btn btn-primary" onclick="markPaid('${j.id}',${j.price},'${j.client_name}','${j.type}')" style="width:100%;justify-content:center">Mark as paid — collect $${parseFloat(j.price||0).toFixed(0)}</button>`:''}
+      ${!j.paid?`<div class="divider"></div><button class="btn btn-primary" onclick="markPaid('${j.id}',${j.price},'${j.client_name}','${j.type}')" style="width:100%;justify-content:center">Mark as paid — collect ₪${parseFloat(j.price||0).toFixed(0)}</button>`:''}
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
   </div>`);
