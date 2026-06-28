@@ -201,14 +201,70 @@
   }
   @keyframes slideUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
 
+  /* ── MOBILE NAV ── */
+  .mobile-nav {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--espresso); z-index: 50;
+    padding: 0 0 env(safe-area-inset-bottom, 0);
+    border-top: 1px solid rgba(255,255,255,.1);
+  }
+  .mobile-nav-inner { display: flex; }
+  .mobile-nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    gap: 3px; padding: 10px 4px 8px; cursor: pointer;
+    color: rgba(255,255,255,.45); font-size: 10px; font-weight: 500;
+    transition: color .15s; user-select: none; min-height: 56px; justify-content: center;
+  }
+  .mobile-nav-item svg { width: 20px; height: 20px; }
+  .mobile-nav-item.active { color: var(--rose); }
+  .mobile-nav-item:active { opacity: .7; }
+
   /* ── MOBILE ── */
   @media (max-width: 768px) {
     .sidebar { display: none; }
-    .content { padding: 16px; }
-    .topbar { padding: 12px 16px; }
+    .mobile-nav { display: block; }
+    .main { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0)); }
+    .content { padding: 14px; }
+    .topbar { padding: 10px 14px; }
+    .topbar-title { font-size: 17px; }
     .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; }
     .grid-2 { grid-template-columns: 1fr; }
     .form-grid-2 { grid-template-columns: 1fr; }
+
+    /* iOS zoom fix — inputs must be ≥16px */
+    input, select, textarea { font-size: 16px; }
+
+    /* Touch targets */
+    .btn { min-height: 44px; padding: 10px 16px; }
+    .btn-sm { min-height: 36px; padding: 6px 12px; }
+    .nav-item { min-height: 44px; }
+
+    /* Full-screen modal sheet */
+    .modal-overlay { align-items: flex-end; padding: 0; background: rgba(28,20,16,.5); }
+    .modal {
+      max-width: 100%; width: 100%; border-radius: 20px 20px 0 0;
+      max-height: 92vh; animation: slideUpSheet .25s ease;
+    }
+    @keyframes slideUpSheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-header { padding: 16px 20px 0; }
+    .modal-body { padding: 16px 20px; }
+    .modal-footer { padding: 0 20px 20px; }
+
+    /* Jobs mobile tabs — handled in JS */
+    .mobile-status-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; margin-bottom: 14px; scrollbar-width: none; }
+    .mobile-status-tabs::-webkit-scrollbar { display: none; }
+    .mobile-tab {
+      flex-shrink: 0; padding: 7px 14px; border-radius: 20px; font-size: 13px;
+      font-weight: 500; cursor: pointer; border: 1.5px solid var(--ivory-border);
+      background: #fff; color: var(--espresso-mid); white-space: nowrap; min-height: 36px;
+    }
+    .mobile-tab.active { background: var(--espresso); color: #fff; border-color: var(--espresso); }
+
+    /* Stat grids — single column on very small screens */
+    @media (max-width: 400px) {
+      .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
   }
 </style>
 </head>
@@ -339,6 +395,9 @@ function renderApp() {
         </div>
       </div>
     </div>
+    <nav class="mobile-nav" id="mobile-nav">
+      <div class="mobile-nav-inner" id="mobile-nav-inner"></div>
+    </nav>
   `;
   renderNav();
   navigateTo('dashboard');
@@ -355,12 +414,21 @@ const PAGES = [
 
 function renderNav() {
   const nav = document.getElementById('nav');
-  if (!nav) return;
-  nav.innerHTML = PAGES.map(p => `
-    <div class="nav-item ${currentPage === p.id ? 'active' : ''}" onclick="navigateTo('${p.id}')">
-      ${p.icon()} ${p.label}
-    </div>
-  `).join('');
+  if (nav) {
+    nav.innerHTML = PAGES.map(p => `
+      <div class="nav-item ${currentPage === p.id ? 'active' : ''}" onclick="navigateTo('${p.id}')">
+        ${p.icon()} ${p.label}
+      </div>
+    `).join('');
+  }
+  const mobileNav = document.getElementById('mobile-nav-inner');
+  if (mobileNav) {
+    mobileNav.innerHTML = PAGES.map(p => `
+      <div class="mobile-nav-item ${currentPage === p.id ? 'active' : ''}" onclick="navigateTo('${p.id}')">
+        ${p.icon()} <span>${p.label}</span>
+      </div>
+    `).join('');
+  }
 }
 
 function navigateTo(pageId) {
@@ -499,6 +567,8 @@ async function loadClients() {
 // ============================================================
 // JOBS
 // ============================================================
+let jobsActiveTab = 'received';
+
 async function loadJobs() {
   document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openNewJobModal()">${iconPlus()} New job</button>`;
   const { data: jobs } = await db.from('jobs').select('*').order('created_at', { ascending: false });
@@ -506,38 +576,77 @@ async function loadJobs() {
   const statuses = [
     { id: 'received',    label: 'Received' },
     { id: 'in-progress', label: 'In progress' },
-    { id: 'ready',       label: 'Ready for pickup' },
+    { id: 'ready',       label: 'Ready' },
     { id: 'complete',    label: 'Completed' },
   ];
-  document.getElementById('content').innerHTML = `
-    <div class="grid-4">
-      ${statuses.map(s => {
-        const col = J.filter(j => j.status === s.id);
-        return `
-          <div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-              <div style="font-weight:600;font-size:13px;color:var(--espresso-mid)">${s.label}</div>
-              <div style="background:var(--ivory-dark);color:var(--espresso-light);font-size:11px;font-weight:700;padding:1px 6px;border-radius:10px">${col.length}</div>
-            </div>
-            <div style="display:flex;flex-direction:column;gap:8px">
-              ${col.map(j => `
-                <div class="card" style="padding:12px 14px;cursor:pointer" onclick="openJobDetail('${j.id}')">
-                  <div style="font-weight:600;font-size:13px;margin-bottom:4px">${j.client_name}</div>
-                  <div style="font-size:12px;color:var(--espresso-light);margin-bottom:8px">${j.type}</div>
-                  <div style="display:flex;justify-content:space-between;align-items:center">
-                    <div style="font-weight:700;font-size:15px">$${parseFloat(j.price||0).toFixed(0)}</div>
-                    <div style="font-size:11px;color:var(--espresso-light)">Due ${formatDate(j.due_date)}</div>
-                  </div>
-                  ${!j.paid && j.status !== 'complete' ? `<div style="margin-top:6px"><span class="badge badge-amber">Unpaid</span></div>` : ''}
-                  ${j.status === 'complete' && j.paid ? `<div style="margin-top:6px"><span class="badge badge-sage">Paid ✓</span></div>` : ''}
-                  ${j.notes ? `<div style="margin-top:8px;font-size:11px;color:var(--espresso-light);border-top:1px solid var(--ivory-border);padding-top:8px">${j.notes}</div>` : ''}
-                </div>`).join('')
-              || `<div style="font-size:12px;color:var(--espresso-light);text-align:center;padding:20px 0;border:1.5px dashed var(--ivory-border);border-radius:var(--radius-sm)">No jobs</div>`}
-            </div>
-          </div>`;
-      }).join('')}
+
+  const isMobile = window.innerWidth <= 768;
+
+  if (isMobile) {
+    document.getElementById('content').innerHTML = `
+      <div class="mobile-status-tabs" id="job-tabs">
+        ${statuses.map(s => `
+          <div class="mobile-tab ${jobsActiveTab === s.id ? 'active' : ''}" onclick="switchJobTab('${s.id}')">
+            ${s.label} <span style="opacity:.6">${J.filter(j=>j.status===s.id).length}</span>
+          </div>`).join('')}
+      </div>
+      <div id="job-tab-content"></div>
+    `;
+    renderJobTab(J, jobsActiveTab);
+  } else {
+    document.getElementById('content').innerHTML = `
+      <div class="grid-4">
+        ${statuses.map(s => {
+          const col = J.filter(j => j.status === s.id);
+          return `
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <div style="font-weight:600;font-size:13px;color:var(--espresso-mid)">${s.label}</div>
+                <div style="background:var(--ivory-dark);color:var(--espresso-light);font-size:11px;font-weight:700;padding:1px 6px;border-radius:10px">${col.length}</div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                ${col.map(j => jobCard(j)).join('')
+                || `<div style="font-size:12px;color:var(--espresso-light);text-align:center;padding:20px 0;border:1.5px dashed var(--ivory-border);border-radius:var(--radius-sm)">No jobs</div>`}
+              </div>
+            </div>`;
+        }).join('')}
+      </div>
+    `;
+  }
+}
+
+function jobCard(j) {
+  return `<div class="card" style="padding:12px 14px;cursor:pointer" onclick="openJobDetail('${j.id}')">
+    <div style="font-weight:600;font-size:13px;margin-bottom:4px">${j.client_name}</div>
+    <div style="font-size:12px;color:var(--espresso-light);margin-bottom:8px">${j.type}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700;font-size:15px">$${parseFloat(j.price||0).toFixed(0)}</div>
+      <div style="font-size:11px;color:var(--espresso-light)">Due ${formatDate(j.due_date)}</div>
     </div>
-  `;
+    ${!j.paid && j.status !== 'complete' ? `<div style="margin-top:6px"><span class="badge badge-amber">Unpaid</span></div>` : ''}
+    ${j.status === 'complete' && j.paid ? `<div style="margin-top:6px"><span class="badge badge-sage">Paid ✓</span></div>` : ''}
+    ${j.notes ? `<div style="margin-top:8px;font-size:11px;color:var(--espresso-light);border-top:1px solid var(--ivory-border);padding-top:8px">${j.notes}</div>` : ''}
+  </div>`;
+}
+
+function renderJobTab(jobs, statusId) {
+  const col = jobs.filter(j => j.status === statusId);
+  const el = document.getElementById('job-tab-content');
+  if (!el) return;
+  el.innerHTML = col.length === 0
+    ? `<div style="text-align:center;padding:40px 0;color:var(--espresso-light);font-size:14px">No jobs here</div>`
+    : `<div style="display:flex;flex-direction:column;gap:10px">${col.map(j => jobCard(j)).join('')}</div>`;
+}
+
+async function switchJobTab(statusId) {
+  jobsActiveTab = statusId;
+  document.querySelectorAll('.mobile-tab').forEach(t => t.classList.remove('active'));
+  const tabs = document.querySelectorAll('.mobile-tab');
+  const statuses = ['received','in-progress','ready','complete'];
+  const idx = statuses.indexOf(statusId);
+  if (tabs[idx]) tabs[idx].classList.add('active');
+  const { data: jobs } = await db.from('jobs').select('*').order('created_at', { ascending: false });
+  renderJobTab(jobs || [], statusId);
 }
 
 // ============================================================
