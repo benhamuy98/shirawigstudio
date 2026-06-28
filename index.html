@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio — Wig Repair Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ivory: #FAF8F4;
+    --ivory-dark: #F2EDE6;
+    --ivory-border: #E6DDD4;
+    --espresso: #1C1410;
+    --espresso-mid: #4A3728;
+    --espresso-light: #8C6B58;
+    --rose: #C4748A;
+    --rose-light: #F2E0E5;
+    --rose-dark: #9A4F66;
+    --sage: #7A9E87;
+    --sage-light: #E4EFE7;
+    --sage-dark: #4E7A5C;
+    --amber: #C49A4A;
+    --amber-light: #FDF3DF;
+    --amber-dark: #8A6A28;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 3px rgba(28,20,16,.08), 0 4px 16px rgba(28,20,16,.06);
+    --shadow-sm: 0 1px 3px rgba(28,20,16,.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--ivory);
+    color: var(--espresso);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* ── LOGIN ── */
+  .login-wrap {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--espresso); padding: 20px;
+  }
+  .login-card {
+    background: var(--ivory); border-radius: 20px; padding: 40px 36px;
+    width: 100%; max-width: 380px; box-shadow: 0 8px 40px rgba(0,0,0,.3);
+  }
+  .login-brand { font-size: 22px; font-weight: 700; color: var(--espresso); margin-bottom: 4px; }
+  .login-sub { font-size: 13px; color: var(--espresso-light); margin-bottom: 32px; }
+  .login-error {
+    background: var(--rose-light); color: var(--rose-dark); font-size: 13px;
+    padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 16px; display: none;
+  }
+
+  /* ── LAYOUT ── */
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 220px; min-height: 100vh; background: var(--espresso);
+    display: flex; flex-direction: column; flex-shrink: 0;
+    position: sticky; top: 0; height: 100vh;
+  }
+  .sidebar-brand { padding: 24px 20px 20px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .sidebar-brand .brand-name { font-size: 17px; font-weight: 600; color: #fff; letter-spacing: -.2px; }
+  .sidebar-brand .brand-sub { font-size: 11px; color: rgba(255,255,255,.4); margin-top: 2px; letter-spacing: .04em; text-transform: uppercase; }
+  .sidebar-nav { padding: 12px 10px; flex: 1; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    border-radius: 8px; cursor: pointer; margin-bottom: 2px;
+    color: rgba(255,255,255,.55); font-size: 14px; font-weight: 500;
+    transition: background .15s, color .15s; user-select: none;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: rgba(255,255,255,.85); }
+  .nav-item.active { background: var(--rose); color: #fff; }
+  .nav-item svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .sidebar-footer { padding: 16px; border-top: 1px solid rgba(255,255,255,.08); }
+  .signout-btn {
+    background: none; border: 1px solid rgba(255,255,255,.15); color: rgba(255,255,255,.5);
+    border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; width: 100%;
+    transition: all .15s;
+  }
+  .signout-btn:hover { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.8); }
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .topbar {
+    background: var(--ivory); border-bottom: 1px solid var(--ivory-border);
+    padding: 14px 28px; display: flex; align-items: center;
+    justify-content: space-between; gap: 16px; flex-shrink: 0;
+  }
+  .topbar-title { font-size: 20px; font-weight: 600; letter-spacing: -.3px; }
+  .topbar-actions { display: flex; gap: 8px; }
+  .content { padding: 24px 28px; flex: 1; overflow-y: auto; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 8px 16px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; cursor: pointer;
+    border: 1.5px solid transparent; transition: all .15s; white-space: nowrap;
+  }
+  .btn-primary { background: var(--rose); color: #fff; border-color: var(--rose); }
+  .btn-primary:hover { background: var(--rose-dark); border-color: var(--rose-dark); }
+  .btn-ghost { background: transparent; color: var(--espresso-mid); border-color: var(--ivory-border); }
+  .btn-ghost:hover { background: var(--ivory-dark); }
+  .btn-sm { padding: 5px 11px; font-size: 12px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn svg { width: 14px; height: 14px; }
+  .btn-full { width: 100%; justify-content: center; padding: 11px 16px; font-size: 14px; }
+
+  /* ── CARDS ── */
+  .card { background: #fff; border: 1px solid var(--ivory-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm); }
+  .card-sm { padding: 14px 16px; }
+
+  /* ── GRID ── */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+  /* ── STATS ── */
+  .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--espresso-light); margin-bottom: 6px; }
+  .stat-value { font-size: 28px; font-weight: 700; letter-spacing: -.5px; color: var(--espresso); }
+  .stat-sub { font-size: 12px; color: var(--espresso-light); margin-top: 4px; }
+
+  /* ── BADGES ── */
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-rose { background: var(--rose-light); color: var(--rose-dark); }
+  .badge-sage { background: var(--sage-light); color: var(--sage-dark); }
+  .badge-amber { background: var(--amber-light); color: var(--amber-dark); }
+  .badge-gray { background: var(--ivory-dark); color: var(--espresso-mid); }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--espresso-light); padding: 10px 12px; border-bottom: 1.5px solid var(--ivory-border); white-space: nowrap; }
+  td { padding: 11px 12px; border-bottom: 1px solid var(--ivory-border); font-size: 13px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--ivory); }
+  .td-primary { font-weight: 500; color: var(--espresso); }
+  .td-muted { color: var(--espresso-light); }
+
+  /* ── FORM ── */
+  .form-grid { display: grid; gap: 14px; }
+  .form-grid-2 { grid-template-columns: 1fr 1fr; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 12px; font-weight: 600; color: var(--espresso-mid); letter-spacing: .02em; }
+  input, select, textarea {
+    border: 1.5px solid var(--ivory-border); border-radius: var(--radius-sm);
+    padding: 9px 12px; font-size: 14px; color: var(--espresso);
+    background: #fff; font-family: inherit; transition: border-color .15s; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--rose); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  /* ── MODAL ── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(28,20,16,.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+  .modal { background: #fff; border-radius: 16px; width: 100%; max-width: 520px; box-shadow: 0 8px 40px rgba(0,0,0,.18); max-height: 90vh; overflow-y: auto; }
+  .modal-header { padding: 20px 24px 0; display: flex; justify-content: space-between; align-items: flex-start; }
+  .modal-title { font-size: 18px; font-weight: 600; letter-spacing: -.2px; }
+  .modal-body { padding: 20px 24px; }
+  .modal-footer { padding: 0 24px 20px; display: flex; justify-content: flex-end; gap: 8px; }
+  .close-btn { background: none; border: none; cursor: pointer; color: var(--espresso-light); padding: 4px; border-radius: 6px; display: flex; }
+  .close-btn:hover { color: var(--espresso); background: var(--ivory-dark); }
+
+  /* ── URGENCY ── */
+  .urgency-item { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: #fff; border-radius: var(--radius-sm); border: 1px solid var(--ivory-border); margin-bottom: 8px; cursor: pointer; transition: box-shadow .15s; }
+  .urgency-item:hover { box-shadow: var(--shadow); }
+  .urgency-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-rose { background: var(--rose); }
+  .dot-amber { background: var(--amber); }
+
+  /* ── MISC ── */
+  .section-title { font-size: 14px; font-weight: 600; color: var(--espresso-mid); margin-bottom: 12px; }
+  .gap-16 { display: flex; flex-direction: column; gap: 16px; }
+  .gap-24 { display: flex; flex-direction: column; gap: 24px; }
+  .quick-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .quick-btn { display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: #fff; border: 1.5px solid var(--ivory-border); border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 500; color: var(--espresso-mid); transition: all .15s; box-shadow: var(--shadow-sm); }
+  .quick-btn:hover { border-color: var(--rose); color: var(--rose); }
+  .quick-btn svg { width: 16px; height: 16px; color: var(--rose); }
+  .empty { text-align: center; padding: 48px 24px; color: var(--espresso-light); }
+  .empty p { font-size: 14px; margin-bottom: 16px; }
+  .progress-bar { background: var(--ivory-dark); border-radius: 4px; height: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; }
+  .divider { height: 1px; background: var(--ivory-border); margin: 20px 0; }
+  .tag { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; background: var(--ivory-dark); color: var(--espresso-mid); }
+  .client-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 80px; }
+  .bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+  .bar { border-radius: 4px 4px 0 0; width: 100%; }
+  .bar-label { font-size: 10px; color: var(--espresso-light); }
+
+  /* ── LOADING ── */
+  .loading { text-align: center; padding: 60px; color: var(--espresso-light); font-size: 14px; }
+  .spinner { width: 24px; height: 24px; border: 2px solid var(--ivory-border); border-top-color: var(--rose); border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; background: var(--espresso);
+    color: #fff; padding: 12px 18px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; z-index: 200;
+    animation: slideUp .2s ease; box-shadow: var(--shadow);
+  }
+  @keyframes slideUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+  /* ── MOBILE ── */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .content { padding: 16px; }
+    .topbar { padding: 12px 16px; }
+    .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .form-grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="root">
+  <div class="loading"><div class="spinner"></div>Loading Studio…</div>
+</div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script>
+// ============================================================
+// SUPABASE INIT
+// ============================================================
+const SUPABASE_URL = 'https://rpmvnxculzpkzkrakrft.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwbXZueGN1bHpwa3prcmFrcmZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwODk3NzEsImV4cCI6MjA5NjY2NTc3MX0.qpC438UXyKgZ-fmvyvQ0IiyGuyhSw8QADbygTorG6bw';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentPage = 'dashboard';
+let currentUser = null;
+
+// ============================================================
+// BOOT — check session
+// ============================================================
+async function boot() {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    renderApp();
+  } else {
+    renderLogin();
+  }
+  db.auth.onAuthStateChange((_event, session) => {
+    if (session) { currentUser = session.user; renderApp(); }
+    else { currentUser = null; renderLogin(); }
+  });
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
+function renderLogin() {
+  document.getElementById('root').innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <div class="login-brand">✦ Studio</div>
+        <div class="login-sub">Wig Repair Business Manager</div>
+        <div class="login-error" id="login-error"></div>
+        <div class="form-group" style="margin-bottom:12px">
+          <label>Email</label>
+          <input id="login-email" type="email" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="form-group" style="margin-bottom:20px">
+          <label>Password</label>
+          <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button class="btn btn-primary btn-full" id="login-btn" onclick="signIn()">Sign in</button>
+        <div style="margin-top:16px;text-align:center">
+          <span style="font-size:12px;color:var(--espresso-light)">Forgot password? </span>
+          <span style="font-size:12px;color:var(--rose);cursor:pointer" onclick="resetPassword()">Send reset email</span>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') signIn(); });
+}
+
+async function signIn() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  if (!email || !password) { showLoginError('Please enter your email and password.'); return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  if (error) {
+    const msg = error.message.includes('Database error')
+      ? 'Unable to connect — the database may be waking up. Please wait 30 seconds and try again.'
+      : error.message;
+    showLoginError(msg); btn.disabled = false; btn.textContent = 'Sign in';
+  }
+}
+
+async function resetPassword() {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) { showLoginError('Enter your email above first.'); return; }
+  await db.auth.resetPasswordForEmail(email);
+  showLoginError('Reset email sent — check your inbox.');
+  document.getElementById('login-error').style.background = 'var(--sage-light)';
+  document.getElementById('login-error').style.color = 'var(--sage-dark)';
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+async function signOut() {
+  await db.auth.signOut();
+}
+
+// ============================================================
+// APP SHELL
+// ============================================================
+function renderApp() {
+  document.getElementById('root').innerHTML = `
+    <div class="app">
+      <nav class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-name">✦ Studio</div>
+          <div class="brand-sub">Wig Repair Manager</div>
+        </div>
+        <div class="sidebar-nav" id="nav"></div>
+        <div class="sidebar-footer">
+          <div style="font-size:11px;color:rgba(255,255,255,.3);margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${currentUser?.email || ''}</div>
+          <button class="signout-btn" onclick="signOut()">Sign out</button>
+        </div>
+      </nav>
+      <div class="main">
+        <div class="topbar">
+          <div class="topbar-title" id="page-title">Dashboard</div>
+          <div class="topbar-actions" id="topbar-actions"></div>
+        </div>
+        <div class="content" id="content">
+          <div class="loading"><div class="spinner"></div>Loading…</div>
+        </div>
+      </div>
+    </div>
+  `;
+  renderNav();
+  navigateTo('dashboard');
+}
+
+const PAGES = [
+  { id: 'dashboard', label: 'Dashboard', icon: iconGrid },
+  { id: 'clients',   label: 'Clients',   icon: iconUsers },
+  { id: 'jobs',      label: 'Jobs',       icon: iconScissors },
+  { id: 'finance',   label: 'Finance',    icon: iconDollar },
+  { id: 'supplies',  label: 'Supplies',   icon: iconBox },
+  { id: 'marketing', label: 'Marketing',  icon: iconMegaphone },
+];
+
+function renderNav() {
+  const nav = document.getElementById('nav');
+  if (!nav) return;
+  nav.innerHTML = PAGES.map(p => `
+    <div class="nav-item ${currentPage === p.id ? 'active' : ''}" onclick="navigateTo('${p.id}')">
+      ${p.icon()} ${p.label}
+    </div>
+  `).join('');
+}
+
+function navigateTo(pageId) {
+  currentPage = pageId;
+  renderNav();
+  const page = PAGES.find(p => p.id === pageId);
+  const titleEl = document.getElementById('page-title');
+  if (titleEl) titleEl.textContent = page.label;
+  document.getElementById('topbar-actions').innerHTML = '';
+  document.getElementById('content').innerHTML = '<div class="loading"><div class="spinner"></div>Loading…</div>';
+  const fns = { dashboard: loadDashboard, clients: loadClients, jobs: loadJobs, finance: loadFinance, supplies: loadSupplies, marketing: loadMarketing };
+  fns[pageId]();
+}
+
+// ============================================================
+// DASHBOARD
+// ============================================================
+async function loadDashboard() {
+  const [clients, jobs, transactions, supplies] = await Promise.all([
+    db.from('clients').select('*'),
+    db.from('jobs').select('*').order('created_at', { ascending: false }),
+    db.from('transactions').select('*'),
+    db.from('supplies').select('*'),
+  ]);
+
+  const C = clients.data || [];
+  const J = jobs.data || [];
+  const T = transactions.data || [];
+  const S = supplies.data || [];
+
+  const income = T.filter(t => t.type === 'income').reduce((s,t) => s + parseFloat(t.amount||0), 0);
+  const expenses = T.filter(t => t.type === 'expense').reduce((s,t) => s + parseFloat(t.amount||0), 0);
+  const unpaidJobs = J.filter(j => !j.paid && j.status !== 'complete');
+  const unpaidTotal = unpaidJobs.reduce((s,j) => s + parseFloat(j.price||0), 0);
+  const activeJobs = J.filter(j => j.status !== 'complete');
+  const readyJobs = J.filter(j => j.status === 'ready');
+  const lowSupplies = S.filter(s => s.qty <= s.reorder_at);
+
+  document.getElementById('content').innerHTML = `
+    <div class="gap-24">
+      <div class="grid-4">
+        <div class="card"><div class="stat-label">Total earned</div><div class="stat-value">$${income.toFixed(0)}</div><div class="stat-sub" style="color:var(--sage-dark)">All time</div></div>
+        <div class="card"><div class="stat-label">Outstanding</div><div class="stat-value" style="color:var(--rose)">$${unpaidTotal.toFixed(0)}</div><div class="stat-sub">${unpaidJobs.length} job${unpaidJobs.length!==1?'s':''} unpaid</div></div>
+        <div class="card"><div class="stat-label">Active jobs</div><div class="stat-value">${activeJobs.length}</div><div class="stat-sub">${readyJobs.length} ready for pickup</div></div>
+        <div class="card"><div class="stat-label">Clients</div><div class="stat-value">${C.length}</div><div class="stat-sub">Total in system</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <div class="section-title">Needs attention</div>
+          ${readyJobs.length === 0 && lowSupplies.length === 0 && unpaidJobs.length === 0
+            ? `<div class="card card-sm" style="text-align:center;color:var(--espresso-light);font-size:13px;padding:20px">All clear — nothing urgent right now 🎉</div>`
+            : `
+              ${readyJobs.map(j => `<div class="urgency-item" onclick="navigateTo('jobs')"><div class="urgency-dot dot-rose"></div><div style="flex:1;font-size:13px;font-weight:500">${j.client_name} — ready for pickup</div><div style="font-size:12px;color:var(--espresso-light)">${j.type}</div></div>`).join('')}
+              ${unpaidJobs.filter(j=>j.status==='ready'||j.status==='complete').map(j=>`<div class="urgency-item" onclick="navigateTo('finance')"><div class="urgency-dot dot-amber"></div><div style="flex:1;font-size:13px;font-weight:500">Invoice $${parseFloat(j.price).toFixed(0)} — ${j.client_name}</div><div style="font-size:12px;color:var(--espresso-light)">Unpaid</div></div>`).join('')}
+              ${lowSupplies.map(s=>`<div class="urgency-item" onclick="navigateTo('supplies')"><div class="urgency-dot dot-amber"></div><div style="flex:1;font-size:13px;font-weight:500">Low stock: ${s.name}</div><div style="font-size:12px;color:var(--espresso-light)">${s.qty} ${s.unit} left</div></div>`).join('')}
+            `}
+        </div>
+        <div>
+          <div class="section-title">Profit summary</div>
+          <div class="card">
+            <div style="display:flex;gap:16px;margin-bottom:16px">
+              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Income</div><div style="font-size:22px;font-weight:700;color:var(--sage-dark)">$${income.toFixed(0)}</div></div>
+              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Expenses</div><div style="font-size:22px;font-weight:700;color:var(--rose)">$${expenses.toFixed(0)}</div></div>
+              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Profit</div><div style="font-size:22px;font-weight:700">$${(income-expenses).toFixed(0)}</div></div>
+            </div>
+            <div style="background:var(--amber-light);border-radius:var(--radius-sm);padding:12px;font-size:13px;color:var(--amber-dark)">
+              <strong>Tax tip:</strong> Set aside <strong>$${Math.round((income-expenses)*0.28)}</strong> (~28% of profit) for taxes.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">Recent jobs <button class="btn btn-ghost btn-sm" onclick="navigateTo('jobs')">See all</button></div>
+        <div class="card" style="padding:0">
+          ${J.length === 0
+            ? `<div class="empty"><p>No jobs yet.</p><button class="btn btn-primary" onclick="openNewJobModal()">Add first job</button></div>`
+            : `<div class="table-wrap"><table><thead><tr><th>Client</th><th>Service</th><th>Status</th><th>Price</th><th>Due</th></tr></thead><tbody>
+              ${J.slice(0,5).map(j=>`<tr><td class="td-primary">${j.client_name}</td><td>${j.type}</td><td>${jobBadge(j.status)}</td><td class="td-primary">$${parseFloat(j.price).toFixed(0)}</td><td class="td-muted">${formatDate(j.due_date)}</td></tr>`).join('')}
+              </tbody></table></div>`}
+        </div>
+      </div>
+
+      <div>
+        <div class="section-title">Quick add</div>
+        <div class="quick-actions">
+          <div class="quick-btn" onclick="openNewJobModal()">${iconScissors()} New job</div>
+          <div class="quick-btn" onclick="openNewClientModal()">${iconUsers()} New client</div>
+          <div class="quick-btn" onclick="openNewTransactionModal()">${iconDollar()} Log expense</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// CLIENTS
+// ============================================================
+async function loadClients() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openNewClientModal()">${iconPlus()} Add client</button>`;
+  const { data: clients } = await db.from('clients').select('*').order('name');
+  const { data: jobs } = await db.from('jobs').select('*');
+
+  if (!clients || clients.length === 0) {
+    document.getElementById('content').innerHTML = `<div class="empty"><p>No clients yet. Add your first client to get started.</p><button class="btn btn-primary" onclick="openNewClientModal()">Add client</button></div>`;
+    return;
+  }
+
+  document.getElementById('content').innerHTML = `
+    <div class="grid-3">
+      ${clients.map(c => {
+        const clientJobs = (jobs||[]).filter(j => j.client_id === c.id);
+        const totalSpent = clientJobs.filter(j=>j.paid).reduce((s,j)=>s+parseFloat(j.price||0),0);
+        const activeJob = clientJobs.find(j => j.status !== 'complete');
+        const initials = c.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+        return `
+          <div class="card" style="cursor:pointer" onclick="openClientDetail('${c.id}')">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+              <div class="client-avatar" style="background:${c.color}22;color:${c.color}">${initials}</div>
+              <div><div style="font-weight:600;font-size:14px">${c.name}</div><div style="font-size:12px;color:var(--espresso-light)">${c.phone||'No phone'}</div></div>
+            </div>
+            ${activeJob ? `<div style="margin-bottom:8px">${jobBadge(activeJob.status)} <span style="font-size:12px;color:var(--espresso-light);margin-left:6px">${activeJob.type}</span></div>` : ''}
+            <div style="display:flex;gap:16px;margin-top:8px">
+              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Jobs</div><div style="font-weight:700;font-size:18px">${clientJobs.length}</div></div>
+              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Spent</div><div style="font-weight:700;font-size:18px">$${totalSpent.toFixed(0)}</div></div>
+              <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.05em">Source</div><div style="font-size:13px;font-weight:500;margin-top:2px">${c.source||'—'}</div></div>
+            </div>
+            ${c.notes ? `<div style="margin-top:10px;font-size:12px;color:var(--espresso-light);border-top:1px solid var(--ivory-border);padding-top:10px;line-height:1.5">${c.notes}</div>` : ''}
+          </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ============================================================
+// JOBS
+// ============================================================
+async function loadJobs() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openNewJobModal()">${iconPlus()} New job</button>`;
+  const { data: jobs } = await db.from('jobs').select('*').order('created_at', { ascending: false });
+  const J = jobs || [];
+  const statuses = [
+    { id: 'received',    label: 'Received' },
+    { id: 'in-progress', label: 'In progress' },
+    { id: 'ready',       label: 'Ready for pickup' },
+    { id: 'complete',    label: 'Completed' },
+  ];
+  document.getElementById('content').innerHTML = `
+    <div class="grid-4">
+      ${statuses.map(s => {
+        const col = J.filter(j => j.status === s.id);
+        return `
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+              <div style="font-weight:600;font-size:13px;color:var(--espresso-mid)">${s.label}</div>
+              <div style="background:var(--ivory-dark);color:var(--espresso-light);font-size:11px;font-weight:700;padding:1px 6px;border-radius:10px">${col.length}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              ${col.map(j => `
+                <div class="card" style="padding:12px 14px;cursor:pointer" onclick="openJobDetail('${j.id}')">
+                  <div style="font-weight:600;font-size:13px;margin-bottom:4px">${j.client_name}</div>
+                  <div style="font-size:12px;color:var(--espresso-light);margin-bottom:8px">${j.type}</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div style="font-weight:700;font-size:15px">$${parseFloat(j.price||0).toFixed(0)}</div>
+                    <div style="font-size:11px;color:var(--espresso-light)">Due ${formatDate(j.due_date)}</div>
+                  </div>
+                  ${!j.paid && j.status !== 'complete' ? `<div style="margin-top:6px"><span class="badge badge-amber">Unpaid</span></div>` : ''}
+                  ${j.status === 'complete' && j.paid ? `<div style="margin-top:6px"><span class="badge badge-sage">Paid ✓</span></div>` : ''}
+                  ${j.notes ? `<div style="margin-top:8px;font-size:11px;color:var(--espresso-light);border-top:1px solid var(--ivory-border);padding-top:8px">${j.notes}</div>` : ''}
+                </div>`).join('')
+              || `<div style="font-size:12px;color:var(--espresso-light);text-align:center;padding:20px 0;border:1.5px dashed var(--ivory-border);border-radius:var(--radius-sm)">No jobs</div>`}
+            </div>
+          </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+// ============================================================
+// FINANCE
+// ============================================================
+async function loadFinance() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openNewTransactionModal()">${iconPlus()} Add transaction</button>`;
+  const [{ data: transactions }, { data: jobs }] = await Promise.all([
+    db.from('transactions').select('*').order('date', { ascending: false }),
+    db.from('jobs').select('*').eq('paid', false),
+  ]);
+  const T = transactions || [];
+  const unpaidJobs = jobs || [];
+  const income = T.filter(t=>t.type==='income').reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const expenses = T.filter(t=>t.type==='expense').reduce((s,t)=>s+parseFloat(t.amount||0),0);
+  const profit = income - expenses;
+
+  document.getElementById('content').innerHTML = `
+    <div class="gap-24">
+      <div class="grid-4">
+        <div class="card"><div class="stat-label">Total income</div><div class="stat-value" style="color:var(--sage-dark)">$${income.toFixed(0)}</div></div>
+        <div class="card"><div class="stat-label">Total expenses</div><div class="stat-value" style="color:var(--rose)">$${expenses.toFixed(0)}</div></div>
+        <div class="card"><div class="stat-label">Net profit</div><div class="stat-value">${profit>=0?'+':''}$${profit.toFixed(0)}</div></div>
+        <div class="card" style="background:var(--amber-light);border-color:#e6c97a"><div class="stat-label" style="color:var(--amber-dark)">Set aside for taxes</div><div class="stat-value" style="color:var(--amber-dark)">$${Math.round(profit*0.28)}</div><div class="stat-sub" style="color:var(--amber-dark)">~28% of profit</div></div>
+      </div>
+      <div>
+        <div class="section-title">Unpaid invoices</div>
+        ${unpaidJobs.length === 0
+          ? `<div class="card card-sm" style="text-align:center;color:var(--espresso-light);font-size:13px;padding:20px">All invoices paid 🎉</div>`
+          : `<div class="card" style="padding:0"><div class="table-wrap"><table><thead><tr><th>Client</th><th>Service</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead><tbody>
+            ${unpaidJobs.map(j=>`<tr><td class="td-primary">${j.client_name}</td><td>${j.type}</td><td>${jobBadge(j.status)}</td><td style="font-weight:700">$${parseFloat(j.price||0).toFixed(0)}</td><td><button class="btn btn-sm btn-ghost" onclick="markPaid('${j.id}',${j.price},'${j.client_name}','${j.type}')">Mark paid</button></td></tr>`).join('')}
+            </tbody></table></div></div>`}
+      </div>
+      <div>
+        <div class="section-title">All transactions</div>
+        <div class="card" style="padding:0">
+          ${T.length === 0
+            ? `<div class="empty"><p>No transactions yet.</p></div>`
+            : `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Type</th><th style="text-align:right">Amount</th></tr></thead><tbody>
+              ${T.map(t=>`<tr><td class="td-muted">${formatDate(t.date)}</td><td class="td-primary">${t.description}</td><td><span class="tag">${t.category||'—'}</span></td><td>${t.type==='income'?`<span class="badge badge-sage">Income</span>`:`<span class="badge badge-rose">Expense</span>`}</td><td style="text-align:right;font-weight:700;color:${t.type==='income'?'var(--sage-dark)':'var(--rose)'}">${t.type==='income'?'+':'-'}$${parseFloat(t.amount||0).toFixed(0)}</td></tr>`).join('')}
+              </tbody></table></div>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// SUPPLIES
+// ============================================================
+async function loadSupplies() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openNewSupplyModal()">${iconPlus()} Add supply</button>`;
+  const { data: supplies } = await db.from('supplies').select('*').order('name');
+  const S = supplies || [];
+  const low = S.filter(s=>s.qty<=s.reorder_at).length;
+  document.getElementById('content').innerHTML = `
+    <div class="gap-16">
+      <div class="grid-3">
+        <div class="card"><div class="stat-label">Total items</div><div class="stat-value">${S.length}</div></div>
+        <div class="card"><div class="stat-label">Low stock alerts</div><div class="stat-value" style="color:var(--amber-dark)">${low}</div></div>
+        <div class="card"><div class="stat-label">Est. supply value</div><div class="stat-value">$${S.reduce((s,i)=>s+(i.qty*parseFloat(i.cost||0)),0).toFixed(0)}</div></div>
+      </div>
+      <div class="card" style="padding:0">
+        ${S.length === 0
+          ? `<div class="empty"><p>No supplies tracked yet.</p><button class="btn btn-primary" onclick="openNewSupplyModal()">Add supply</button></div>`
+          : `<div class="table-wrap"><table><thead><tr><th>Item</th><th>In stock</th><th>Reorder at</th><th>Unit cost</th><th>Status</th><th>Adjust</th></tr></thead><tbody>
+            ${S.map(s=>`<tr>
+              <td class="td-primary">${s.name}</td>
+              <td>${s.qty} ${s.unit}</td>
+              <td class="td-muted">${s.reorder_at} ${s.unit}</td>
+              <td class="td-muted">$${parseFloat(s.cost||0).toFixed(2)}</td>
+              <td>${s.qty<=s.reorder_at?`<span class="badge badge-amber">⚠ Low</span>`:`<span class="badge badge-sage">OK</span>`}</td>
+              <td>
+                <button class="btn btn-ghost btn-sm" onclick="adjustQty('${s.id}',${s.qty},1)">+1</button>
+                <button class="btn btn-ghost btn-sm" onclick="adjustQty('${s.id}',${s.qty},-1)" style="margin-left:4px">−1</button>
+              </td>
+            </tr>`).join('')}
+            </tbody></table></div>`}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// MARKETING
+// ============================================================
+async function loadMarketing() {
+  document.getElementById('topbar-actions').innerHTML = `<button class="btn btn-primary" onclick="openNewMarketingModal()">${iconPlus()} Log activity</button>`;
+  const [{ data: marketing }, { data: clients }] = await Promise.all([
+    db.from('marketing').select('*').order('date', { ascending: false }),
+    db.from('clients').select('*'),
+  ]);
+  const M = marketing || [];
+  const C = clients || [];
+  const totalLeads = M.reduce((s,m)=>s+parseInt(m.leads||0),0);
+  const byChannel = {};
+  M.forEach(m => { byChannel[m.channel] = (byChannel[m.channel]||0) + parseInt(m.leads||0); });
+
+  document.getElementById('content').innerHTML = `
+    <div class="gap-24">
+      <div class="grid-3">
+        <div class="card"><div class="stat-label">Total leads</div><div class="stat-value">${totalLeads}</div></div>
+        <div class="card"><div class="stat-label">Clients</div><div class="stat-value">${C.length}</div></div>
+        <div class="card"><div class="stat-label">Conversion rate</div><div class="stat-value">${totalLeads>0?Math.round((C.length/totalLeads)*100):0}%</div></div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <div class="section-title">Leads by channel</div>
+          <div class="card">
+            ${Object.keys(byChannel).length === 0
+              ? `<div style="font-size:13px;color:var(--espresso-light);text-align:center;padding:20px 0">No data yet</div>`
+              : Object.entries(byChannel).map(([ch,n])=>`
+                <div style="margin-bottom:14px">
+                  <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span style="font-weight:500">${ch}</span><span style="font-weight:700">${n} lead${n!==1?'s':''}</span></div>
+                  <div class="progress-bar"><div class="progress-fill" style="width:${Math.round((n/Math.max(totalLeads,1))*100)}%;background:var(--rose)"></div></div>
+                </div>`).join('')}
+          </div>
+        </div>
+        <div>
+          <div class="section-title">Client sources</div>
+          <div class="card">
+            ${C.length === 0
+              ? `<div style="font-size:13px;color:var(--espresso-light);text-align:center;padding:20px 0">No clients yet</div>`
+              : C.map(c=>{
+                  const initials = c.name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase();
+                  return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div class="client-avatar" style="background:${c.color}22;color:${c.color};width:28px;height:28px;font-size:11px">${initials}</div><span style="font-size:13px;font-weight:500;flex:1">${c.name}</span><span class="tag">${c.source||'Unknown'}</span></div>`;
+                }).join('')}
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="section-title">Activity log</div>
+        <div class="card" style="padding:0">
+          ${M.length === 0
+            ? `<div class="empty"><p>No marketing activity logged yet.</p></div>`
+            : `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Channel</th><th>Type</th><th>Notes</th><th>Leads</th></tr></thead><tbody>
+              ${M.map(m=>`<tr><td class="td-muted">${formatDate(m.date)}</td><td class="td-primary">${m.channel}</td><td><span class="tag">${m.type}</span></td><td style="font-size:12px;color:var(--espresso-light)">${m.notes||'—'}</td><td><span class="badge badge-rose">${m.leads}</span></td></tr>`).join('')}
+              </tbody></table></div>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function openModal(html) {
+  document.getElementById('modal-root').innerHTML = `<div class="modal-overlay" onclick="closeModalOnOverlay(event)">${html}</div>`;
+}
+function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
+function closeModalOnOverlay(e) { if (e.target.classList.contains('modal-overlay')) closeModal(); }
+
+function openNewClientModal() {
+  openModal(`<div class="modal">
+    <div class="modal-header"><div class="modal-title">New client</div><button class="close-btn" onclick="closeModal()">${iconX()}</button></div>
+    <div class="modal-body"><div class="form-grid form-grid-2">
+      <div class="form-group" style="grid-column:1/-1"><label>Full name *</label><input id="c-name" placeholder="e.g. Miriam Cohen"></div>
+      <div class="form-group"><label>Phone</label><input id="c-phone" placeholder="917-555-0000"></div>
+      <div class="form-group"><label>Email</label><input id="c-email" type="email" placeholder="email@example.com"></div>
+      <div class="form-group"><label>How did she find you?</label><select id="c-source"><option>Instagram</option><option>Referral</option><option>Word of mouth</option><option>Facebook</option><option>Google</option><option>Other</option></select></div>
+      <div class="form-group"><label>Wig / client notes</label><textarea id="c-notes" placeholder="Hair type, sensitivities, preferences..."></textarea></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveClient()">Save client</button></div>
+  </div>`);
+}
+
+async function saveClient() {
+  const name = document.getElementById('c-name').value.trim();
+  if (!name) { showToast('Please enter a name.'); return; }
+  const colors = ['#C4748A','#7A9E87','#C49A4A','#7A87C4','#C4907A','#87A47A'];
+  const { error } = await db.from('clients').insert({
+    name, phone: document.getElementById('c-phone').value,
+    email: document.getElementById('c-email').value,
+    source: document.getElementById('c-source').value,
+    notes: document.getElementById('c-notes').value,
+    color: colors[Math.floor(Math.random()*colors.length)]
+  });
+  if (error) { showToast('Error: ' + error.message); return; }
+  closeModal(); showToast('Client saved ✓'); loadClients();
+}
+
+async function openNewJobModal() {
+  const { data: clients } = await db.from('clients').select('id,name').order('name');
+  const C = clients || [];
+  openModal(`<div class="modal">
+    <div class="modal-header"><div class="modal-title">New job</div><button class="close-btn" onclick="closeModal()">${iconX()}</button></div>
+    <div class="modal-body"><div class="form-grid form-grid-2">
+      <div class="form-group" style="grid-column:1/-1"><label>Client *</label>
+        <select id="j-client">${C.length===0?'<option value="">— Add a client first —</option>':C.map(c=>`<option value="${c.id}|${c.name}">${c.name}</option>`).join('')}</select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Service type *</label><input id="j-type" placeholder="e.g. Deep condition + style"></div>
+      <div class="form-group"><label>Price ($) *</label><input id="j-price" type="number" placeholder="0"></div>
+      <div class="form-group"><label>Due date</label><input id="j-due" type="date"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Notes</label><textarea id="j-notes" placeholder="Condition, special requests..."></textarea></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveJob()">Add job</button></div>
+  </div>`);
+}
+
+async function saveJob() {
+  const clientVal = document.getElementById('j-client').value;
+  const type = document.getElementById('j-type').value.trim();
+  const price = parseFloat(document.getElementById('j-price').value);
+  if (!clientVal || !type || !price) { showToast('Please fill in all required fields.'); return; }
+  const [clientId, clientName] = clientVal.split('|');
+  const today = new Date().toISOString().split('T')[0];
+  const { error } = await db.from('jobs').insert({
+    client_id: clientId, client_name: clientName, type,
+    status: 'received', received: today,
+    due_date: document.getElementById('j-due').value || today,
+    price, paid: false, notes: document.getElementById('j-notes').value
+  });
+  if (error) { showToast('Error: ' + error.message); return; }
+  closeModal(); showToast('Job added ✓'); loadJobs();
+}
+
+function openNewTransactionModal() {
+  openModal(`<div class="modal">
+    <div class="modal-header"><div class="modal-title">Add transaction</div><button class="close-btn" onclick="closeModal()">${iconX()}</button></div>
+    <div class="modal-body"><div class="form-grid form-grid-2">
+      <div class="form-group"><label>Type</label><select id="t-type"><option value="income">Income</option><option value="expense">Expense</option></select></div>
+      <div class="form-group"><label>Amount ($) *</label><input id="t-amount" type="number" placeholder="0"></div>
+      <div class="form-group"><label>Category</label><select id="t-category"><option>Services</option><option>Supplies</option><option>Marketing</option><option>Equipment</option><option>Investments</option><option>Other</option></select></div>
+      <div class="form-group"><label>Date</label><input id="t-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Description *</label><input id="t-desc" placeholder="What was this for?"></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveTransaction()">Save</button></div>
+  </div>`);
+}
+
+async function saveTransaction() {
+  const amount = parseFloat(document.getElementById('t-amount').value);
+  const desc = document.getElementById('t-desc').value.trim();
+  if (!amount || !desc) { showToast('Please fill in amount and description.'); return; }
+  const { error } = await db.from('transactions').insert({
+    date: document.getElementById('t-date').value,
+    type: document.getElementById('t-type').value,
+    category: document.getElementById('t-category').value,
+    description: desc, amount
+  });
+  if (error) { showToast('Error: ' + error.message); return; }
+  closeModal(); showToast('Transaction saved ✓'); loadFinance();
+}
+
+function openNewSupplyModal() {
+  openModal(`<div class="modal">
+    <div class="modal-header"><div class="modal-title">Add supply item</div><button class="close-btn" onclick="closeModal()">${iconX()}</button></div>
+    <div class="modal-body"><div class="form-grid form-grid-2">
+      <div class="form-group" style="grid-column:1/-1"><label>Item name *</label><input id="s-name" placeholder="e.g. Detangle spray"></div>
+      <div class="form-group"><label>Quantity</label><input id="s-qty" type="number" value="1"></div>
+      <div class="form-group"><label>Unit</label><input id="s-unit" placeholder="bottles, pairs…"></div>
+      <div class="form-group"><label>Reorder when below</label><input id="s-reorder" type="number" value="2"></div>
+      <div class="form-group"><label>Unit cost ($)</label><input id="s-cost" type="number" value="0"></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveSupply()">Add item</button></div>
+  </div>`);
+}
+
+async function saveSupply() {
+  const name = document.getElementById('s-name').value.trim();
+  if (!name) { showToast('Please enter item name.'); return; }
+  const { error } = await db.from('supplies').insert({
+    name, qty: parseInt(document.getElementById('s-qty').value)||1,
+    unit: document.getElementById('s-unit').value||'units',
+    reorder_at: parseInt(document.getElementById('s-reorder').value)||2,
+    cost: parseFloat(document.getElementById('s-cost').value)||0
+  });
+  if (error) { showToast('Error: ' + error.message); return; }
+  closeModal(); showToast('Supply added ✓'); loadSupplies();
+}
+
+function openNewMarketingModal() {
+  openModal(`<div class="modal">
+    <div class="modal-header"><div class="modal-title">Log marketing activity</div><button class="close-btn" onclick="closeModal()">${iconX()}</button></div>
+    <div class="modal-body"><div class="form-grid form-grid-2">
+      <div class="form-group"><label>Channel</label><select id="m-channel"><option>Instagram</option><option>Facebook</option><option>Referral</option><option>Word of mouth</option><option>Website</option><option>Other</option></select></div>
+      <div class="form-group"><label>Type</label><select id="m-type"><option>Post</option><option>Paid boost</option><option>Story</option><option>Word of mouth</option><option>Flyer</option></select></div>
+      <div class="form-group"><label>Date</label><input id="m-date" type="date" value="${new Date().toISOString().split('T')[0]}"></div>
+      <div class="form-group"><label>Leads generated</label><input id="m-leads" type="number" value="0"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Notes</label><textarea id="m-notes" placeholder="What was this? What worked?"></textarea></div>
+    </div></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveMarketing()">Save</button></div>
+  </div>`);
+}
+
+async function saveMarketing() {
+  const { error } = await db.from('marketing').insert({
+    date: document.getElementById('m-date').value,
+    channel: document.getElementById('m-channel').value,
+    type: document.getElementById('m-type').value,
+    notes: document.getElementById('m-notes').value,
+    leads: parseInt(document.getElementById('m-leads').value)||0
+  });
+  if (error) { showToast('Error: ' + error.message); return; }
+  closeModal(); showToast('Activity logged ✓'); loadMarketing();
+}
+
+async function openClientDetail(id) {
+  const [{ data: c }, { data: jobs }] = await Promise.all([
+    db.from('clients').select('*').eq('id', id).single(),
+    db.from('jobs').select('*').eq('client_id', id).order('created_at', { ascending: false }),
+  ]);
+  const J = jobs || [];
+  const totalSpent = J.filter(j=>j.paid).reduce((s,j)=>s+parseFloat(j.price||0),0);
+  openModal(`<div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">${c.name}</div><div style="font-size:13px;color:var(--espresso-light);margin-top:2px">${c.phone||''} ${c.email?'· '+c.email:''}</div></div>
+      <button class="close-btn" onclick="closeModal()">${iconX()}</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Jobs</div><div style="font-weight:700;font-size:22px">${J.length}</div></div>
+        <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Total spent</div><div style="font-weight:700;font-size:22px">$${totalSpent.toFixed(0)}</div></div>
+        <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Source</div><div style="font-size:13px;font-weight:600;margin-top:4px">${c.source||'—'}</div></div>
+      </div>
+      ${c.notes?`<div style="background:var(--ivory-dark);border-radius:var(--radius-sm);padding:12px;font-size:13px;margin-bottom:16px;color:var(--espresso-mid)">${c.notes}</div>`:''}
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px">Job history</div>
+      ${J.length===0
+        ?`<div style="font-size:13px;color:var(--espresso-light);text-align:center;padding:16px 0">No jobs yet</div>`
+        :J.map(j=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--ivory-border)">
+          <div><div style="font-size:13px;font-weight:500">${j.type}</div><div style="font-size:12px;color:var(--espresso-light)">${formatDate(j.due_date)}</div></div>
+          <div style="display:flex;align-items:center;gap:8px">${jobBadge(j.status)}<span style="font-weight:700">$${parseFloat(j.price||0).toFixed(0)}</span></div>
+        </div>`).join('')}
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  </div>`);
+}
+
+async function openJobDetail(id) {
+  const { data: j } = await db.from('jobs').select('*').eq('id', id).single();
+  const statuses = ['received','in-progress','ready','complete'];
+  openModal(`<div class="modal">
+    <div class="modal-header">
+      <div><div class="modal-title">${j.client_name}</div><div style="font-size:13px;color:var(--espresso-light);margin-top:2px">${j.type}</div></div>
+      <button class="close-btn" onclick="closeModal()">${iconX()}</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+        <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Price</div><div style="font-weight:700;font-size:22px">$${parseFloat(j.price||0).toFixed(0)}</div></div>
+        <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Due</div><div style="font-weight:600;font-size:14px;margin-top:4px">${formatDate(j.due_date)}</div></div>
+        <div class="card card-sm" style="flex:1;text-align:center"><div class="stat-label">Paid</div><div style="font-size:20px;margin-top:2px">${j.paid?'✅':'❌'}</div></div>
+      </div>
+      ${j.notes?`<div style="background:var(--ivory-dark);border-radius:var(--radius-sm);padding:12px;font-size:13px;margin-bottom:16px;color:var(--espresso-mid)">${j.notes}</div>`:''}
+      <div style="font-weight:600;font-size:13px;margin-bottom:10px">Update status</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${statuses.map(s=>`<button class="btn ${j.status===s?'btn-primary':'btn-ghost'}" onclick="updateJobStatus('${j.id}','${s}')">${statusLabel(s)}</button>`).join('')}
+      </div>
+      ${!j.paid?`<div class="divider"></div><button class="btn btn-primary" onclick="markPaid('${j.id}',${j.price},'${j.client_name}','${j.type}')" style="width:100%;justify-content:center">Mark as paid — collect $${parseFloat(j.price||0).toFixed(0)}</button>`:''}
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  </div>`);
+}
+
+// ============================================================
+// ACTIONS
+// ============================================================
+async function markPaid(jobId, price, clientName, type) {
+  const today = new Date().toISOString().split('T')[0];
+  await db.from('jobs').update({ paid: true, status: 'complete' }).eq('id', jobId);
+  await db.from('transactions').insert({
+    date: today, type: 'income', category: 'Services',
+    description: `${type} — ${clientName}`, amount: price
+  });
+  closeModal(); showToast('Payment recorded ✓');
+  if (currentPage === 'jobs') loadJobs();
+  else if (currentPage === 'finance') loadFinance();
+  else loadDashboard();
+}
+
+async function updateJobStatus(jobId, status) {
+  await db.from('jobs').update({ status }).eq('id', jobId);
+  closeModal(); showToast('Status updated ✓'); loadJobs();
+}
+
+async function adjustQty(id, currentQty, delta) {
+  const newQty = Math.max(0, currentQty + delta);
+  await db.from('supplies').update({ qty: newQty }).eq('id', id);
+  loadSupplies();
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function formatDate(d) {
+  if (!d) return '—';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const parts = d.split('-');
+  return `${months[parseInt(parts[1])-1]} ${parseInt(parts[2])}`;
+}
+
+function jobBadge(status) {
+  const map = { 'received':['badge-gray','Received'], 'in-progress':['badge-amber','In progress'], 'ready':['badge-rose','Ready'], 'complete':['badge-sage','Complete'] };
+  const [cls, label] = map[status] || ['badge-gray', status];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function statusLabel(s) {
+  return { 'received':'Received','in-progress':'In progress','ready':'Ready','complete':'Complete' }[s]||s;
+}
+
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.getElementById('toast-root').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+// ============================================================
+// ICONS
+// ============================================================
+function iconGrid()     { return `<svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`; }
+function iconUsers()    { return `<svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>`; }
+function iconScissors() { return `<svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>`; }
+function iconDollar()   { return `<svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`; }
+function iconBox()      { return `<svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`; }
+function iconMegaphone(){ return `<svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>`; }
+function iconPlus()     { return `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`; }
+function iconX()        { return `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`; }
+
+// ============================================================
+// START
+// ============================================================
+boot();
+</script>
+</body>
+</html>
