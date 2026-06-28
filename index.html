@@ -984,6 +984,7 @@ async function openClientDetail(id) {
 async function openJobDetail(id) {
   const { data: j } = await db.from('jobs').select('*').eq('id', id).single();
   const statuses = ['received','in-progress','ready','complete'];
+  const photos = j.photos || [];
   openModal(`<div class="modal">
     <div class="modal-header">
       <div><div class="modal-title">${j.client_name}</div><div style="font-size:13px;color:var(--espresso-light);margin-top:2px">${j.type}</div></div>
@@ -1001,8 +1002,99 @@ async function openJobDetail(id) {
         ${statuses.map(s=>`<button class="btn ${j.status===s?'btn-primary':'btn-ghost'}" onclick="updateJobStatus('${j.id}','${s}')">${statusLabel(s)}</button>`).join('')}
       </div>
       ${!j.paid?`<div class="divider"></div><button class="btn btn-primary" onclick="markPaid('${j.id}',${j.price},'${j.client_name}','${j.type}')" style="width:100%;justify-content:center">Mark as paid — collect ₪${parseFloat(j.price||0).toFixed(0)}</button>`:''}
+      <div class="divider"></div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:10px">Photos</div>
+      ${photos.length > 0 ? `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          ${photos.map((url,i) => `
+            <div style="position:relative">
+              <img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--ivory-border);cursor:pointer" onclick="viewPhoto('${url}')">
+              <button onclick="deleteJobPhoto('${j.id}',${i})" style="position:absolute;top:-6px;right:-6px;background:var(--rose);border:none;color:#fff;border-radius:50%;width:20px;height:20px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
+            </div>`).join('')}
+        </div>` : `<div style="font-size:13px;color:var(--espresso-light);margin-bottom:12px">No photos yet</div>`}
+      <label class="btn btn-ghost" style="cursor:pointer;display:inline-flex">
+        📷 Add photo
+        <input type="file" accept="image/*" capture="environment" style="display:none" onchange="uploadJobPhoto('${j.id}', this)">
+      </label>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="openEditJobModal('${j.id}')">Edit</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    </div>
+  </div>`);
+}
+
+async function openEditJobModal(id) {
+  const [{ data: j }, { data: clients }] = await Promise.all([
+    db.from('jobs').select('*').eq('id', id).single(),
+    db.from('clients').select('id,name').order('name'),
+  ]);
+  const C = clients || [];
+  openModal(`<div class="modal">
+    <div class="modal-header"><div class="modal-title">Edit job</div><button class="close-btn" onclick="closeModal()">${iconX()}</button></div>
+    <div class="modal-body"><div class="form-grid form-grid-2">
+      <div class="form-group" style="grid-column:1/-1"><label>Client *</label>
+        <select id="ej-client">${C.map(c=>`<option value="${c.id}|${c.name}"${c.id===j.client_id?' selected':''}>${c.name}</option>`).join('')}</select>
+      </div>
+      <div class="form-group" style="grid-column:1/-1"><label>Service type *</label><input id="ej-type" value="${j.type||''}"></div>
+      <div class="form-group"><label>Price (₪) *</label><input id="ej-price" type="number" value="${j.price||''}"></div>
+      <div class="form-group"><label>Due date</label><input id="ej-due" type="date" value="${j.due_date||''}"></div>
+      <div class="form-group" style="grid-column:1/-1"><label>Notes</label><textarea id="ej-notes">${j.notes||''}</textarea></div>
+    </div></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEditJob('${j.id}')">Save changes</button>
+    </div>
+  </div>`);
+}
+
+async function saveEditJob(id) {
+  const clientVal = document.getElementById('ej-client').value;
+  const type = document.getElementById('ej-type').value.trim();
+  const price = parseFloat(document.getElementById('ej-price').value);
+  if (!clientVal || !type || !price) { showToast('Please fill in all required fields.'); return; }
+  const [clientId, clientName] = clientVal.split('|');
+  const { error } = await db.from('jobs').update({
+    client_id: clientId, client_name: clientName, type,
+    due_date: document.getElementById('ej-due').value,
+    price, notes: document.getElementById('ej-notes').value
+  }).eq('id', id);
+  if (error) { showToast('Error: ' + error.message); return; }
+  closeModal(); showToast('Job updated ✓');
+  if (currentPage === 'jobs') loadJobs(); else loadDashboard();
+}
+
+async function uploadJobPhoto(jobId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  showToast('Uploading…');
+  const ext = file.name.split('.').pop();
+  const path = `${jobId}/${Date.now()}.${ext}`;
+  const { error: uploadError } = await db.storage.from('job-photos').upload(path, file, { upsert: true });
+  if (uploadError) { showToast('Upload failed: ' + uploadError.message); return; }
+  const { data: { publicUrl } } = db.storage.from('job-photos').getPublicUrl(path);
+  const { data: j } = await db.from('jobs').select('photos').eq('id', jobId).single();
+  const photos = [...(j.photos || []), publicUrl];
+  const { error } = await db.from('jobs').update({ photos }).eq('id', jobId);
+  if (error) { showToast('Error saving photo: ' + error.message); return; }
+  showToast('Photo added ✓');
+  openJobDetail(jobId);
+}
+
+async function deleteJobPhoto(jobId, index) {
+  const { data: j } = await db.from('jobs').select('photos').eq('id', jobId).single();
+  const photos = (j.photos || []).filter((_,i) => i !== index);
+  await db.from('jobs').update({ photos }).eq('id', jobId);
+  showToast('Photo removed');
+  openJobDetail(jobId);
+}
+
+function viewPhoto(url) {
+  openModal(`<div class="modal" style="max-width:600px">
+    <div class="modal-header"><div class="modal-title">Photo</div><button class="close-btn" onclick="closeModal()">${iconX()}</button></div>
+    <div class="modal-body" style="padding:12px">
+      <img src="${url}" style="width:100%;border-radius:8px;display:block">
+    </div>
   </div>`);
 }
 
