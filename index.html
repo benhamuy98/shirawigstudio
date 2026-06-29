@@ -608,9 +608,6 @@ async function loadDashboard() {
               <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Expenses</div><div style="font-size:22px;font-weight:700;color:var(--rose)">₪${expenses.toFixed(0)}</div></div>
               <div><div style="font-size:11px;color:var(--espresso-light);font-weight:600;text-transform:uppercase;letter-spacing:.06em">Profit</div><div style="font-size:22px;font-weight:700">₪${(income-expenses).toFixed(0)}</div></div>
             </div>
-            <div style="background:var(--amber-light);border-radius:var(--radius-sm);padding:12px;font-size:13px;color:var(--amber-dark)">
-              <strong>Tax tip:</strong> Set aside <strong>₪${Math.round((income-expenses)*0.28)}</strong> (~28% of profit) for taxes.
-            </div>
           </div>
         </div>
       </div>
@@ -783,7 +780,6 @@ async function loadFinance() {
         <div class="card"><div class="stat-label">Total income</div><div class="stat-value" style="color:var(--sage-dark)">₪${income.toFixed(0)}</div></div>
         <div class="card"><div class="stat-label">Total expenses</div><div class="stat-value" style="color:var(--rose)">₪${expenses.toFixed(0)}</div></div>
         <div class="card"><div class="stat-label">Net profit</div><div class="stat-value">${profit>=0?'+':''}₪${profit.toFixed(0)}</div></div>
-        <div class="card" style="background:var(--amber-light);border-color:#e6c97a"><div class="stat-label" style="color:var(--amber-dark)">Set aside for taxes</div><div class="stat-value" style="color:var(--amber-dark)">₪${Math.round(profit*0.28)}</div><div class="stat-sub" style="color:var(--amber-dark)">~28% of profit</div></div>
       </div>
       <div>
         <div class="section-title">Unpaid invoices</div>
