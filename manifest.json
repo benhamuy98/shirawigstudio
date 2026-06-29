@@ -1,0 +1,25 @@
+{
+  "name": "SB Wigs Studio",
+  "short_name": "SB Wigs",
+  "description": "Wig repair business manager",
+  "start_url": "/shirawigstudio/",
+  "scope": "/shirawigstudio/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#FAF8F4",
+  "background_color": "#FAF8F4",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
