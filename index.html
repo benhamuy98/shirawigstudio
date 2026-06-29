@@ -1129,8 +1129,20 @@ async function saveEditClient(id) {
   closeModal(); showToast('Client updated ✓'); loadClients();
 }
 
-async function deleteClient(id, name) {
-  if (!confirm(`Delete ${name}? This will not delete their jobs.`)) return;
+function deleteClient(id, name) {
+  openModal(`<div class="modal">
+    <div class="modal-header"><div class="modal-title">Delete client?</div><button class="close-btn" onclick="closeModal()">${iconX()}</button></div>
+    <div class="modal-body">
+      <p style="font-size:14px;color:var(--espresso-mid)">Are you sure you want to delete <strong>${name}</strong>? Their jobs will not be deleted.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" style="background:var(--rose-dark);border-color:var(--rose-dark)" onclick="confirmDeleteClient('${id}')">Delete</button>
+    </div>
+  </div>`);
+}
+
+async function confirmDeleteClient(id) {
   const { error } = await db.from('clients').delete().eq('id', id);
   if (error) { showToast('Error: ' + error.message); return; }
   closeModal(); showToast('Client deleted'); loadClients();
